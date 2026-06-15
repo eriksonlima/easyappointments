@@ -130,6 +130,8 @@ App.Pages.Secretaries = (function () {
             $('#password, #password-confirm').removeClass('required');
             $('#secretary-providers input:checkbox').prop('disabled', false);
             $('#select-all-providers, #select-none-providers').prop('disabled', false);
+            $('#secretary-companies input:checkbox').prop('disabled', false);
+            $('#select-all-companies, #select-none-companies').prop('disabled', false);
         });
 
         /**
@@ -149,6 +151,8 @@ App.Pages.Secretaries = (function () {
             $('#password, #password-confirm').addClass('required');
             $('#secretary-providers input:checkbox').prop('disabled', false);
             $('#select-all-providers, #select-none-providers').prop('disabled', false);
+            $('#secretary-companies input:checkbox').prop('disabled', false);
+            $('#select-all-companies, #select-none-companies').prop('disabled', false);
         });
 
         /**
@@ -165,6 +169,8 @@ App.Pages.Secretaries = (function () {
             $('#password, #password-confirm').removeClass('required');
             $('#secretary-providers input:checkbox').prop('disabled', false);
             $('#select-all-providers, #select-none-providers').prop('disabled', false);
+            $('#secretary-companies input:checkbox').prop('disabled', false);
+            $('#select-all-companies, #select-none-companies').prop('disabled', false);
         });
 
         /**
@@ -226,6 +232,15 @@ App.Pages.Secretaries = (function () {
                 }
             });
 
+            // Include secretary companies.
+            secretary.companies = [];
+
+            $('#secretary-companies input:checkbox').each((index, checkbox) => {
+                if ($(checkbox).prop('checked')) {
+                    secretary.companies.push($(checkbox).attr('data-id'));
+                }
+            });
+
             // Include password if changed.
             if ($password.val() !== '') {
                 secretary.settings.password = $password.val();
@@ -269,6 +284,20 @@ App.Pages.Secretaries = (function () {
          */
         $secretaries.on('click', '#select-none-providers', () => {
             $('#secretary-providers input:checkbox').prop('checked', false);
+        });
+
+        /**
+         * Event: Select All Companies Button "Click"
+         */
+        $secretaries.on('click', '#select-all-companies', () => {
+            $('#secretary-companies input:checkbox').prop('checked', true);
+        });
+
+        /**
+         * Event: Select None Companies Button "Click"
+         */
+        $secretaries.on('click', '#select-none-companies', () => {
+            $('#secretary-companies input:checkbox').prop('checked', false);
         });
     }
 
@@ -391,6 +420,8 @@ App.Pages.Secretaries = (function () {
         $('#edit-secretary, #delete-secretary').prop('disabled', true);
         $('#secretary-providers input:checkbox').prop('disabled', true).prop('checked', false);
         $('#select-all-providers, #select-none-providers').prop('disabled', true);
+        $('#secretary-companies input:checkbox').prop('disabled', true).prop('checked', false);
+        $('#select-all-companies, #select-none-companies').prop('disabled', true);
     }
 
     /**
@@ -422,6 +453,18 @@ App.Pages.Secretaries = (function () {
 
         secretary.providers.forEach((secretaryProviderId) => {
             const $checkbox = $('#secretary-providers input[data-id="' + secretaryProviderId + '"]');
+
+            if (!$checkbox.length) {
+                return;
+            }
+
+            $checkbox.prop('checked', true);
+        });
+
+        $('#secretary-companies input:checkbox').prop('checked', false);
+
+        (secretary.companies || []).forEach((secretaryCompanyId) => {
+            const $checkbox = $('#secretary-companies input[data-id="' + secretaryCompanyId + '"]');
 
             if (!$checkbox.length) {
                 return;

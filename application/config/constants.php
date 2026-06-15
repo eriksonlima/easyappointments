@@ -48,6 +48,7 @@ const DB_SLUG_CUSTOMER = 'customer';
 const DB_SLUG_PROVIDER = 'provider';
 const DB_SLUG_ADMIN = 'admin';
 const DB_SLUG_SECRETARY = 'secretary';
+const DB_SLUG_COMPANY_ADMIN = 'company_admin';
 
 const FILTER_TYPE_ALL = 'all';
 const FILTER_TYPE_PROVIDER = 'provider';
@@ -72,6 +73,7 @@ const PRIV_SYSTEM_SETTINGS = 'system_settings';
 const PRIV_USER_SETTINGS = 'user_settings';
 const PRIV_WEBHOOKS = 'webhooks';
 const PRIV_BLOCKED_PERIODS = 'blocked_periods';
+const PRIV_COMPANIES = 'companies';
 
 const DATE_FORMAT_DMY = 'DMY';
 const DATE_FORMAT_MDY = 'MDY';

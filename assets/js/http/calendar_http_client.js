@@ -292,6 +292,30 @@ App.Http.Calendar = (function () {
                             },
                         ],
                     );
+                } else if (response.outside_working_hours) {
+                    // Show working hours warning dialog
+                    App.Utils.Message.show(
+                        lang('appointment_update'),
+                        response.message + ' ' + lang('would_you_like_to_proceed'),
+                        [
+                            {
+                                text: lang('cancel'),
+                                click: (event, messageModal) => {
+                                    messageModal.hide();
+                                    if (revertCallback) {
+                                        revertCallback();
+                                    }
+                                },
+                            },
+                            {
+                                text: lang('proceed'),
+                                click: (event, messageModal) => {
+                                    messageModal.hide();
+                                    attemptSave(true);
+                                },
+                            },
+                        ],
+                    );
                 } else if (response.success) {
                     if (successCallback) {
                         successCallback(response);

@@ -57,6 +57,7 @@ class Calendar extends EA_Controller
         'id_users_provider',
         'id_users_customer',
         'id_services',
+        'id_companies',
     ];
 
     public array $optional_appointment_fields = [
@@ -77,6 +78,8 @@ class Calendar extends EA_Controller
         $this->load->model('services_model');
         $this->load->model('providers_model');
         $this->load->model('roles_model');
+        $this->load->model('companies_model');
+        $this->load->model('secretaries_model');
 
         $this->load->library('accounts');
         $this->load->library('google_sync');
@@ -140,6 +143,30 @@ class Calendar extends EA_Controller
 
             $secretary_providers = $secretary['providers'];
         }
+
+        // Load available companies and a map of company_id → [provider_ids] for the appointment modal.
+        $available_companies = [];
+        $company_providers_map = [];
+
+        if ($role_slug === DB_SLUG_SECRETARY) {
+            $secretary = $secretary ?? $this->secretaries_model->find($user_id);
+            $secretary_company_ids = $secretary['companies'] ?? [];
+
+            foreach ($secretary_company_ids as $company_id) {
+                $company = $this->companies_model->find((int) $company_id);
+                if ($company) {
+                    $available_companies[] = ['id' => $company['id'], 'name' => $company['name']];
+                    $company_providers_map[(int) $company['id']] = $this->companies_model->get_provider_ids((int) $company['id']);
+                }
+            }
+        } elseif ($role_slug === DB_SLUG_ADMIN) {
+            $all_companies = $this->companies_model->get();
+            foreach ($all_companies as $company) {
+                $available_companies[] = ['id' => $company['id'], 'name' => $company['name']];
+                $company_providers_map[(int) $company['id']] = $this->companies_model->get_provider_ids((int) $company['id']);
+            }
+        }
+        // For provider: no company selector (empty arrays)
 
         $edit_appointment = null;
 
@@ -223,6 +250,8 @@ class Calendar extends EA_Controller
             'available_providers' => filter_sensitive_users_data($available_providers),
             'available_services' => $available_services,
             'secretary_providers' => $secretary_providers,
+            'available_companies' => $available_companies,
+            'company_providers_map' => $company_providers_map,
             'edit_appointment' => $edit_appointment,
             'google_sync_feature' => filter_var(
                 setting('google_sync_feature') ?: config('google_sync_feature'),
@@ -245,6 +274,7 @@ class Calendar extends EA_Controller
             'available_providers' => filter_sensitive_users_data($available_providers),
             'available_services' => $available_services,
             'secretary_providers' => $secretary_providers,
+            'available_companies' => $available_companies,
             'appointment_status_options' => json_decode($appointment_status_options, true) ?? [],
             'require_first_name' => setting('require_first_name'),
             'require_last_name' => setting('require_last_name'),
@@ -280,7 +310,10 @@ class Calendar extends EA_Controller
 
             $force_save = filter_var(request('force_save', false), FILTER_VALIDATE_BOOLEAN);
 
-            $this->check_event_permissions((int) $appointment_data['id_users_provider']);
+            $this->check_event_permissions(
+                (int) $appointment_data['id_users_provider'],
+                !empty($appointment_data['id_companies']) ? (int) $appointment_data['id_companies'] : null,
+            );
 
             // Save customer changes to the database.
             if ($customer_data) {
@@ -345,6 +378,25 @@ class Calendar extends EA_Controller
                     return;
                 }
 
+                // Check if the appointment falls within the provider's working hours.
+                if (!$force_save) {
+                    $working_hours_error = $this->check_appointment_working_hours(
+                        (int) $appointment['id_users_provider'],
+                        $appointment['start_datetime'],
+                        $appointment['end_datetime'],
+                        !empty($appointment['id_companies']) ? (int) $appointment['id_companies'] : null,
+                    );
+
+                    if ($working_hours_error) {
+                        json_response([
+                            'success' => false,
+                            'outside_working_hours' => true,
+                            'message' => $working_hours_error,
+                        ]);
+                        return;
+                    }
+                }
+
                 if ($manage_mode && !empty($appointment['id'])) {
                     $this->synchronization->remove_appointment_on_provider_change($appointment['id']);
                 }
@@ -405,20 +457,85 @@ class Calendar extends EA_Controller
         }
     }
 
-    private function check_event_permissions(int $provider_id): void
-    {
+    /**
+     * Validate that an appointment falls within the provider's working hours.
+     *
+     * Returns null if valid, or an error message string if outside working hours.
+     *
+     * @param int         $provider_id    Provider user ID.
+     * @param string      $start_datetime Appointment start (Y-m-d H:i:s).
+     * @param string      $end_datetime   Appointment end (Y-m-d H:i:s).
+     * @param int|null    $company_id     Company context (null = particular).
+     *
+     * @return string|null Error message or null if within hours.
+     */
+    private function check_appointment_working_hours(
+        int $provider_id,
+        string $start_datetime,
+        string $end_datetime,
+        ?int $company_id = null,
+    ): ?string {
+        $provider = $this->providers_model->find($provider_id);
+
+        if ($company_id) {
+            $plan_json = $this->providers_model->get_working_plan_for_company($provider_id, $company_id);
+            $working_plan = !empty($plan_json) ? json_decode($plan_json, true) : null;
+        } else {
+            $working_plan = json_decode($provider['settings']['working_plan'] ?? '{}', true);
+        }
+
+        if (empty($working_plan)) {
+            return lang('outside_working_hours');
+        }
+
+        $start = new DateTime($start_datetime);
+        $end   = new DateTime($end_datetime);
+
+        $day_name = strtolower($start->format('l')); // 'monday', 'sunday', etc.
+
+        $day_plan = $working_plan[$day_name] ?? null;
+
+        if (empty($day_plan)) {
+            return sprintf(lang('provider_not_working_on_day'), ucfirst($day_name));
+        }
+
+        $work_start = new DateTime($start->format('Y-m-d') . ' ' . $day_plan['start']);
+        $work_end   = new DateTime($start->format('Y-m-d') . ' ' . $day_plan['end']);
+
+        if ($start < $work_start || $end > $work_end) {
+            return lang('outside_working_hours');
+        }
+
+        return null;
+    }
+
+    private function check_event_permissions(int $provider_id, ?int $company_id = null): void    {
         $user_id = (int) session('user_id');
         $role_slug = session('role_slug');
 
-        if (
-            $role_slug === DB_SLUG_SECRETARY &&
-            !$this->secretaries_model->is_provider_supported($user_id, $provider_id)
-        ) {
-            abort(403);
+        if ($role_slug === DB_SLUG_SECRETARY) {
+            if ($company_id) {
+                // Booking via company: secretary must manage that company AND the provider must belong to it.
+                if (
+                    !$this->secretaries_model->is_company_supported($user_id, $company_id) ||
+                    !in_array($provider_id, $this->companies_model->get_provider_ids($company_id))
+                ) {
+                    abort(403);
+                }
+            } elseif (!$this->secretaries_model->is_provider_supported($user_id, $provider_id)) {
+                // Booking particular: provider must be directly linked to the secretary.
+                abort(403);
+            }
         }
 
-        if ($role_slug === DB_SLUG_PROVIDER && $user_id !== $provider_id) {
-            abort(403);
+        if ($role_slug === DB_SLUG_PROVIDER) {
+            if ($user_id !== $provider_id) {
+                abort(403);
+            }
+            // Provider can never book under a company context.
+            if ($company_id) {
+                abort(403);
+            }
         }
     }
 

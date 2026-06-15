@@ -830,6 +830,7 @@ App.Pages.Booking = (function () {
             is_unavailability: false,
             id_users_provider: $selectProvider.val(),
             id_services: $selectService.val(),
+            id_companies: vars('booking_company') ? vars('booking_company').id : null,
         };
 
         data.manage_mode = Number(manageMode);

@@ -40,10 +40,12 @@ class Secretaries extends EA_Controller
         'id_roles',
         'settings',
         'providers',
+        'companies',
     ];
 
     public array $optional_secretary_fields = [
         'providers' => [],
+        'companies' => [],
     ];
 
     public array $allowed_secretary_setting_fields = ['username', 'password', 'notifications', 'calendar_view'];
@@ -61,6 +63,7 @@ class Secretaries extends EA_Controller
 
         $this->load->model('secretaries_model');
         $this->load->model('providers_model');
+        $this->load->model('companies_model');
         $this->load->model('roles_model');
 
         $this->load->library('accounts');
@@ -100,12 +103,17 @@ class Secretaries extends EA_Controller
             $this->providers_model->only($provider, $this->allowed_provider_fields);
         }
 
+        $companies = $this->companies_model->get();
+
+        $available_companies = array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $companies);
+
         script_vars([
             'user_id' => $user_id,
             'role_slug' => $role_slug,
             'timezones' => $this->timezones->to_array(),
             'min_password_length' => MIN_PASSWORD_LENGTH,
             'providers' => filter_sensitive_users_data($providers),
+            'available_companies' => $available_companies,
             'default_language' => setting('default_language'),
             'default_timezone' => setting('default_timezone'),
         ]);
@@ -117,6 +125,7 @@ class Secretaries extends EA_Controller
             'grouped_timezones' => $this->timezones->to_grouped_array(),
             'privileges' => $this->roles_model->get_permissions_by_slug($role_slug),
             'providers' => $this->providers_model->get(),
+            'available_companies' => $available_companies,
         ]);
 
         $this->load->view('pages/secretaries');

@@ -245,6 +245,38 @@
                         <!-- JS -->
                     </div>
 
+                    <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                        <label class="form-label mb-0">
+                            <?= lang('companies') ?>
+                        </label>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" id="select-all-companies" class="btn btn-outline-secondary" disabled>
+                                <?= lang('select_all') ?>
+                            </button>
+                            <button type="button" id="select-none-companies" class="btn btn-outline-secondary" disabled>
+                                <?= lang('select_none') ?>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="secretary-companies" class="card card-body border">
+                        <?php if (empty(vars('available_companies'))): ?>
+                            <span class="text-muted small"><?= lang('no_records_found') ?></span>
+                        <?php else: ?>
+                            <?php foreach (vars('available_companies') as $company): ?>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox"
+                                           id="company-<?= $company['id'] ?>"
+                                           data-id="<?= $company['id'] ?>"
+                                           disabled>
+                                    <label class="form-check-label" for="company-<?= $company['id'] ?>">
+                                        <?= e($company['name']) ?>
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
                 </div>
             </div>
         </div>

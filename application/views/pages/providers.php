@@ -281,6 +281,15 @@
                                 <!-- JS -->
                             </div>
 
+                            <div class="mt-4 mb-2">
+                                <label class="form-label mb-2 fw-semibold">
+                                    <?= lang('secretaries') ?>
+                                </label>
+                                <div id="provider-secretaries" class="card card-body border bg-light py-2">
+                                    <span class="text-muted small" id="provider-secretaries-empty"><?= lang('no_records_found') ?></span>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>

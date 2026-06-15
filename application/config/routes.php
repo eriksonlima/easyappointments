@@ -191,6 +191,16 @@ route_api_resource($route, 'webhooks', 'api/v1/');
 
 route_api_resource($route, 'blocked_periods', 'api/v1/');
 
+route_api_resource($route, 'companies', 'api/v1/');
+
+$route['api/v1/companies/(:num)/providers/(:num)/working_plan']['get'] = 'api/v1/companies_api_v1/provider_working_plan_show/$1/$2';
+
+$route['api/v1/companies/(:num)/providers/(:num)/working_plan']['put'] = 'api/v1/companies_api_v1/provider_working_plan_update/$1/$2';
+
+$route['api/v1/companies/providers/(:num)/working_plan']['get'] = 'api/v1/companies_api_v1/provider_particular_working_plan_show/$1';
+
+$route['api/v1/companies/providers/(:num)/working_plan']['put'] = 'api/v1/companies_api_v1/provider_particular_working_plan_update/$1';
+
 $route['api/v1/settings']['get'] = 'api/v1/settings_api_v1/index';
 
 $route['api/v1/settings/(:any)']['get'] = 'api/v1/settings_api_v1/show/$1';

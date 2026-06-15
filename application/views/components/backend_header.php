@@ -63,6 +63,16 @@
                 </div>
             </li>
 
+            <?php $hidden = can('view', PRIV_COMPANIES) ? '' : 'd-none'; ?>
+            <?php $active = $active_menu == PRIV_COMPANIES ? 'active' : ''; ?>
+            <li class="nav-item text-center <?= $active . $hidden ?>" style="min-width: 100px;">
+                <a href="<?= site_url('companies') ?>" class="nav-link text-white fw-light py-3 px-3"
+                   data-tippy-content="<?= lang('manage_companies_hint') ?>">
+                    <i class="fas fa-building me-2"></i>
+                    <?= lang('companies') ?>
+                </a>
+            </li>
+
             <?php $hidden = can('view', PRIV_USERS) ? '' : 'd-none'; ?>
             <?php $active = $active_menu == PRIV_USERS ? 'active' : ''; ?>
             <li class="nav-item dropdown text-center <?= $active . $hidden ?>" style="min-width: 100px;">

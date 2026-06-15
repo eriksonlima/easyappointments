@@ -221,6 +221,7 @@ class Secretaries_model extends EA_Model
             $this->cast($secretary);
             $secretary['settings'] = $this->get_settings($secretary['id']);
             $secretary['providers'] = $this->get_provider_ids($secretary['id']);
+            $secretary['companies'] = $this->get_company_ids($secretary['id']);
         }
 
         return $secretaries;
@@ -295,10 +296,11 @@ class Secretaries_model extends EA_Model
         $secretary['id_roles'] = $this->get_secretary_role_id();
 
         $provider_ids = $secretary['providers'] ?? [];
+        $company_ids = $secretary['companies'] ?? [];
 
         $settings = $secretary['settings'];
 
-        unset($secretary['providers'], $secretary['settings']);
+        unset($secretary['providers'], $secretary['companies'], $secretary['settings']);
 
         if (!$this->db->insert('users', $secretary)) {
             throw new RuntimeException('Could not insert secretary.');
@@ -310,6 +312,7 @@ class Secretaries_model extends EA_Model
 
         $this->set_settings($secretary['id'], $settings);
         $this->set_provider_ids($secretary['id'], $provider_ids);
+        $this->set_company_ids($secretary['id'], $company_ids);
 
         return $secretary['id'];
     }
@@ -368,10 +371,11 @@ class Secretaries_model extends EA_Model
         $secretary['update_datetime'] = date('Y-m-d H:i:s');
 
         $provider_ids = $secretary['providers'] ?? [];
+        $company_ids = $secretary['companies'] ?? [];
 
         $settings = $secretary['settings'];
 
-        unset($secretary['providers'], $secretary['settings']);
+        unset($secretary['providers'], $secretary['companies'], $secretary['settings']);
 
         if (isset($settings['password'])) {
             $existing_settings = $this->db->get_where('user_settings', ['id_users' => $secretary['id']])->row_array();
@@ -393,6 +397,7 @@ class Secretaries_model extends EA_Model
 
         $this->set_settings($secretary['id'], $settings);
         $this->set_provider_ids($secretary['id'], $provider_ids);
+        $this->set_company_ids($secretary['id'], $company_ids);
 
         return (int) $secretary['id'];
     }
@@ -541,6 +546,7 @@ class Secretaries_model extends EA_Model
             $this->cast($secretary);
             $secretary['settings'] = $this->get_settings($secretary['id']);
             $secretary['providers'] = $this->get_provider_ids($secretary['id']);
+            $secretary['companies'] = $this->get_company_ids($secretary['id']);
         }
 
         return $secretaries;
@@ -631,6 +637,7 @@ class Secretaries_model extends EA_Model
             'zip' => $secretary['zip_code'],
             'notes' => $secretary['notes'],
             'providers' => $secretary['providers'],
+            'companies' => $secretary['companies'] ?? [],
             'timezone' => $secretary['timezone'],
             'language' => $secretary['language'],
             'ldapDn' => $secretary['ldap_dn'],
@@ -714,6 +721,10 @@ class Secretaries_model extends EA_Model
             $decoded_resource['providers'] = $secretary['providers'];
         }
 
+        if (array_key_exists('companies', $secretary)) {
+            $decoded_resource['companies'] = $secretary['companies'];
+        }
+
         if (array_key_exists('settings', $secretary)) {
             if (empty($decoded_resource['settings'])) {
                 $decoded_resource['settings'] = [];
@@ -779,7 +790,89 @@ class Secretaries_model extends EA_Model
         $this->cast($secretary);
         $secretary['settings'] = $this->get_settings($secretary['id']);
         $secretary['providers'] = $this->get_provider_ids($secretary['id']);
+        $secretary['companies'] = $this->get_company_ids($secretary['id']);
 
         return $secretary;
+    }
+
+    /**
+     * Get the company IDs the secretary is linked to.
+     *
+     * @param int $secretary_id Secretary ID.
+     *
+     * @return array Returns an array of company IDs.
+     */
+    public function get_company_ids(int $secretary_id): array
+    {
+        $rows = $this->db->get_where('secretaries_companies', ['id_users_secretary' => $secretary_id])->result_array();
+
+        return array_map(fn($row) => (int) $row['id_companies'], $rows);
+    }
+
+    /**
+     * Set the company IDs the secretary is linked to (replaces existing).
+     *
+     * @param int $secretary_id Secretary ID.
+     * @param array $company_ids Company IDs.
+     */
+    public function set_company_ids(int $secretary_id, array $company_ids): void
+    {
+        $this->db->delete('secretaries_companies', ['id_users_secretary' => $secretary_id]);
+
+        foreach ($company_ids as $company_id) {
+            $this->db->insert('secretaries_companies', [
+                'id_users_secretary' => $secretary_id,
+                'id_companies' => $company_id,
+            ]);
+        }
+    }
+
+    /**
+     * Check if the secretary is linked to the given company.
+     *
+     * @param int $secretary_id Secretary ID.
+     * @param int $company_id Company ID.
+     *
+     * @return bool
+     */
+    public function is_company_supported(int $secretary_id, int $company_id): bool
+    {
+        return in_array($company_id, $this->get_company_ids($secretary_id));
+    }
+
+    /**
+     * Get secretaries linked to a given company.
+     *
+     * @param int $company_id Company ID.
+     *
+     * @return array List of secretaries with id, first_name, last_name.
+     */
+    public function get_by_company_id(int $company_id): array
+    {
+        return $this->db
+            ->select('users.id, users.first_name, users.last_name')
+            ->from('users')
+            ->join('secretaries_companies', 'secretaries_companies.id_users_secretary = users.id', 'inner')
+            ->where('secretaries_companies.id_companies', $company_id)
+            ->get()
+            ->result_array();
+    }
+
+    /**
+     * Get secretaries linked to a given provider.
+     *
+     * @param int $provider_id Provider ID.
+     *
+     * @return array List of secretaries with id, first_name, last_name.
+     */
+    public function get_by_provider_id(int $provider_id): array
+    {
+        return $this->db
+            ->select('users.id, users.first_name, users.last_name')
+            ->from('users')
+            ->join('secretaries_providers', 'secretaries_providers.id_users_secretary = users.id', 'inner')
+            ->where('secretaries_providers.id_users_provider', $provider_id)
+            ->get()
+            ->result_array();
     }
 }

@@ -108,6 +108,20 @@
                                     </select>
                                 </div>
 
+                                <?php if (session('role_slug') !== DB_SLUG_PROVIDER): ?>
+                                <div class="mb-3" id="select-company-wrapper">
+                                    <label for="select-company" class="form-label">
+                                        <?= lang('company') ?>
+                                    </label>
+                                    <select id="select-company" class="form-select">
+                                        <option value=""><?= lang('particular') ?></option>
+                                        <?php foreach (vars('available_companies') as $company): ?>
+                                            <option value="<?= e($company['id']) ?>"><?= e($company['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <?php endif; ?>
+
                                 <div class="mb-3">
                                     <label for="select-provider" class="form-label">
                                         <?= lang('provider') ?>

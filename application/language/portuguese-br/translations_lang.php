@@ -574,4 +574,22 @@ $lang['about_app_premium'] = 'Oferecemos serviços completos para software auto-
 $lang['go_premium'] = 'Seja Premium';
 $lang['notify_users_on_create_question'] = 'Gostaria de notificar o cliente sobre este novo agendamento?';
 $lang['notify_users_on_delete_question'] = 'Gostaria de notificar o cliente sobre o cancelamento do agendamento?';
+$lang['companies'] = 'Empresas';
+$lang['company'] = 'Empresa';
+$lang['manage_companies_hint'] = 'Gerenciar as empresas às quais os profissionais estão vinculados.';
+$lang['company_saved'] = 'Empresa salva com sucesso.';
+$lang['company_deleted'] = 'Empresa excluída com sucesso.';
+$lang['delete_company'] = 'Excluir Empresa';
+$lang['slug'] = 'Slug (URL amigável)';
+$lang['slug_hint'] = 'Usado na URL de agendamento: /booking?company={slug}';
+$lang['auto_generated'] = 'Gerado automaticamente se vazio';
+$lang['working_plan_company_hint'] = 'Defina os horários de atendimento deste profissional nesta empresa. Dias não marcados indicam que o profissional não atende aqui naquele dia.';
+$lang['working_plan_saved'] = 'Plano de trabalho salvo com sucesso!';
+$lang['working_plan_no_company'] = 'Salve a empresa primeiro antes de definir o horário.';
+$lang['working'] = 'Trabalhando';
+$lang['occupied_by'] = 'Ocupado por';
+$lang['schedule_conflict'] = 'Conflito de agenda! Os dias abaixo se sobrepõem com horários já definidos:';
+$lang['particular'] = 'Particular (sem empresa)';
+$lang['outside_working_hours'] = 'O horário do agendamento está fora do horário de trabalho do profissional.';
+$lang['provider_not_working_on_day'] = 'O profissional não atende na %s.';
 // End

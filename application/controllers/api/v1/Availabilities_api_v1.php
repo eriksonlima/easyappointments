@@ -63,15 +63,22 @@ class Availabilities_api_v1 extends EA_Controller
 
             $date = request('date');
 
+            $company_id = request('companyId') ? (int) request('companyId') : null;
+
             if (!$date) {
                 $date = date('Y-m-d');
             }
 
             $provider = $this->providers_model->find($provider_id);
 
+            if (empty($provider)) {
+                json_response(['success' => false, 'message' => 'Provider not found.'], 404);
+                return;
+            }
+
             $service = $this->services_model->find($service_id);
 
-            $available_hours = $this->availability->get_available_hours($date, $service, $provider);
+            $available_hours = $this->availability->get_available_hours($date, $service, $provider, null, $company_id);
 
             json_response($available_hours);
         } catch (Throwable $e) {

@@ -44,6 +44,7 @@ App.Components.AppointmentsModal = (function () {
     const $selectFilterItem = $('#select-filter-item');
     const $selectService = $('#select-service');
     const $selectProvider = $('#select-provider');
+    const $selectCompany = $('#select-company');
     const $insertAppointment = $('#insert-appointment');
     const $existingCustomersList = $('#existing-customers-list');
     const $newCustomer = $('#new-customer');
@@ -73,8 +74,61 @@ App.Components.AppointmentsModal = (function () {
     /**
      * Add the component event listeners.
      */
-    function addEventListeners() {
-        /**
+    /**
+     * Refresh the provider list based on the selected service and company context.
+     *
+     * @param {string|null} serviceId  Selected service ID.
+     * @param {string|null} previousProviderId  Re-select this provider ID if still available.
+     */
+    function refreshProviderList(serviceId, previousProviderId) {
+        $selectProvider.empty();
+
+        if (!serviceId) {
+            return;
+        }
+
+        const selectedCompanyId = $selectCompany.length ? Number($selectCompany.val()) || null : null;
+        const companyProvidersMap = vars('company_providers_map') || {};
+        const companyProviderIds = selectedCompanyId ? (companyProvidersMap[selectedCompanyId] || []).map(Number) : null;
+
+        vars('available_providers').forEach((provider) => {
+            provider.services.forEach((providerServiceId) => {
+                if (Number(providerServiceId) !== Number(serviceId)) {
+                    return;
+                }
+
+                // Provider role: only themselves, no company context.
+                if (
+                    vars('role_slug') === App.Layouts.Backend.DB_SLUG_PROVIDER &&
+                    Number(provider.id) !== vars('user_id')
+                ) {
+                    return;
+                }
+
+                // Secretary / admin with company selected: only providers of that company.
+                if (companyProviderIds !== null && !companyProviderIds.includes(Number(provider.id))) {
+                    return;
+                }
+
+                // Secretary without company (particular): only directly-linked providers.
+                if (
+                    !selectedCompanyId &&
+                    vars('role_slug') === App.Layouts.Backend.DB_SLUG_SECRETARY &&
+                    (vars('secretary_providers') || []).indexOf(Number(provider.id)) === -1
+                ) {
+                    return;
+                }
+
+                $selectProvider.append(new Option(provider.first_name + ' ' + provider.last_name, provider.id));
+            });
+        });
+
+        if (previousProviderId && $selectProvider.find(`option[value="${previousProviderId}"]`).length) {
+            $selectProvider.val(previousProviderId);
+        }
+    }
+
+    function addEventListeners() {        /**
          * Event: Manage Appointments Dialog Save Button "Click"
          *
          * Stores the appointment changes or inserts a new appointment depending on the dialog mode.
@@ -106,6 +160,11 @@ App.Components.AppointmentsModal = (function () {
                 notes: $appointmentNotes.val(),
                 is_unavailability: Number(false),
             };
+
+            const selectedCompany = $selectCompany.val();
+            if (selectedCompany) {
+                appointment.id_companies = selectedCompany;
+            }
 
             if ($appointmentId.val() !== '') {
                 // Set the id value, only if we are editing an appointment.
@@ -443,34 +502,18 @@ App.Components.AppointmentsModal = (function () {
             const endDateTimeObject = new Date(startDateTimeObject.getTime() + duration * 60000);
             App.Utils.UI.setDateTimePickerValue($endDatetime, endDateTimeObject);
 
-            // Update the providers select box.
+            // Update the providers select box (with company context).
+            refreshProviderList(serviceId, providerId);
+        });
 
-            vars('available_providers').forEach((provider) => {
-                provider.services.forEach((providerServiceId) => {
-                    if (
-                        vars('role_slug') === App.Layouts.Backend.DB_SLUG_PROVIDER &&
-                        Number(provider.id) !== vars('user_id')
-                    ) {
-                        return; // continue
-                    }
-
-                    if (
-                        vars('role_slug') === App.Layouts.Backend.DB_SLUG_SECRETARY &&
-                        vars('secretary_providers').indexOf(Number(provider.id)) === -1
-                    ) {
-                        return; // continue
-                    }
-
-                    // If the current provider is able to provide the selected service, add him to the list box.
-                    if (Number(providerServiceId) === Number(serviceId)) {
-                        $selectProvider.append(new Option(provider.first_name + ' ' + provider.last_name, provider.id));
-                    }
-                });
-
-                if ($selectProvider.find(`option[value="${providerId}"]`).length) {
-                    $selectProvider.val(providerId);
-                }
-            });
+        /**
+         * Event: Selected Company "Change"
+         *
+         * When the company changes, filter the provider list to only those
+         * linked to that company (or all accessible providers if "Particular").
+         */
+        $selectCompany.on('change', () => {
+            refreshProviderList($selectService.val(), $selectProvider.val());
         });
 
         /**

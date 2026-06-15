@@ -15,13 +15,19 @@ externalDocs:
   description: Find out more about Easy!Appointments
   url: https://easyappointments.org/docs.html
 servers:
+  - url: http://localhost/api/v1
+    description: Ambiente local (Docker)
+  - url: http://localhost/index.php/api/v1
+    description: Ambiente local — URL alternativa com index.php
   - url: https://demo.easyappointments.org/index.php/api/v1/
-  - url: http://localhost/index.php/api/v1/
+    description: Demo
 tags:
   - name: admins
   - name: appointments
   - name: availabilities
   - name: blocked_periods
+  - name: companies
+    description: Multi-company management — create, read, update and delete companies, manage provider working plans per company.
   - name: customers
   - name: providers
   - name: secretaries
@@ -37,19 +43,32 @@ paths:
       tags:
         - availabilities
       summary: Gets availability
+      description: >-
+        Returns available time slots for a provider on a given date.
+        When `companyId` is provided, the provider's working plan for that specific company is used.
+        When omitted, the provider's personal (particular) working plan is used.
       parameters:
         - name: providerId
           in: query
+          required: true
           schema:
             type: integer
         - name: serviceId
           in: query
+          required: true
           schema:
             type: integer
         - name: date
           in: query
+          required: true
           schema:
             type: string
+            example: '2026-06-18'
+        - name: companyId
+          in: query
+          description: Filter availability by company working plan. Omit to use the provider's personal (particular) working plan.
+          schema:
+            type: integer
       responses:
         '200':
           description: OK
@@ -443,6 +462,325 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+  /companies:
+    get:
+      tags:
+        - companies
+      summary: Get all companies
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: length
+          in: query
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: fields
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyRecord'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+    post:
+      tags:
+        - companies
+      summary: Create a company
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyPayload'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyRecord'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-codegen-request-body-name: body
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+  /companies/{companyId}:
+    get:
+      tags:
+        - companies
+      summary: Get a company
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyRecord'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+    put:
+      tags:
+        - companies
+      summary: Update a company
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyPayload'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyRecord'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-codegen-request-body-name: body
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+    delete:
+      tags:
+        - companies
+      summary: Delete a company
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: No Content
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+  /companies/{companyId}/providers/{providerId}/working_plan:
+    get:
+      tags:
+        - companies
+      summary: Get provider working plan for a company
+      description: Returns the working plan of a provider within the context of a specific company.
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyProviderWorkingPlan'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+    put:
+      tags:
+        - companies
+      summary: Update provider working plan for a company
+      description: Updates the working plan of a provider within the context of a specific company.
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkingPlanPayload'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyProviderWorkingPlan'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-codegen-request-body-name: body
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+  /companies/providers/{providerId}/working_plan:
+    get:
+      tags:
+        - companies
+      summary: Get provider personal (particular) working plan
+      description: Returns the personal working plan of a provider (not tied to any company).
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderParticularWorkingPlan'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerToken: [ ]
+        - BasicAuth: [ ]
+    put:
+      tags:
+        - companies
+      summary: Update provider personal (particular) working plan
+      description: Updates the personal working plan of a provider (not tied to any company).
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkingPlanPayload'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderParticularWorkingPlan'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-codegen-request-body-name: body
       security:
         - BearerToken: [ ]
         - BasicAuth: [ ]
@@ -2172,6 +2510,10 @@ components:
           type: integer
         serviceId:
           type: integer
+        companyId:
+          type: integer
+          nullable: true
+          description: Company context for this appointment. Null for personal (particular) appointments.
         googleCalendarId:
           type: string
         caldavCalendarId:
@@ -2190,6 +2532,7 @@ components:
         customerId: 5
         providerId: 2
         serviceId: 6
+        companyId: null
         googleCalendarId: null
         caldavCalendarId: null
     AppointmentPayload:
@@ -2215,6 +2558,10 @@ components:
           type: integer
         serviceId:
           type: integer
+        companyId:
+          type: integer
+          nullable: true
+          description: Set to the company ID to book under a company working plan. Omit or null for personal (particular) appointment.
       example:
         start: '2021-01-01 17:00:00'
         end: '2021-01-01 18:00:00'
@@ -2226,6 +2573,7 @@ components:
         customerId: 5
         providerId: 2
         serviceId: 6
+        companyId: null
     UnavailabilityRecord:
       type: object
       properties:
@@ -2893,6 +3241,12 @@ components:
           type: string
         providers:
           type: array
+          description: IDs of providers this secretary manages.
+          items:
+            type: integer
+        companies:
+          type: array
+          description: IDs of companies this secretary is linked to.
           items:
             type: integer
         settings:
@@ -2922,7 +3276,8 @@ components:
         timezone: UTC
         language: english
         ldapDn: null
-        providers: [ ]
+        providers: [2]
+        companies: [1]
         settings:
           username: jessydoe
           password: Password@123
@@ -2959,6 +3314,12 @@ components:
           type: string
         providers:
           type: array
+          description: IDs of providers this secretary manages.
+          items:
+            type: integer
+        companies:
+          type: array
+          description: IDs of companies this secretary is linked to.
           items:
             type: integer
         settings:
@@ -3183,6 +3544,214 @@ components:
       example:
         success: false
         message: Test error message with debug info.
+    CompanyRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+          description: URL-friendly unique identifier for the company.
+        description:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        logo:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        language:
+          type: string
+          nullable: true
+      example:
+        id: 1
+        name: EMPRESA A
+        slug: empresa-a
+        description: null
+        address: Rua Exemplo, 123
+        city: Recife
+        state: PE
+        zip: '50000-000'
+        phone: '+558100000000'
+        email: contato@empresaa.com
+        notes: null
+        logo: null
+        timezone: America/Recife
+        language: portuguese-br
+    CompanyPayload:
+      type: object
+      required:
+        - name
+        - slug
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+          description: URL-friendly unique identifier (must be unique across companies).
+        description:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        zip:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        timezone:
+          type: string
+        language:
+          type: string
+          nullable: true
+      example:
+        name: EMPRESA A
+        slug: empresa-a
+        email: contato@empresaa.com
+        timezone: America/Recife
+    WorkingDayPlan:
+      type: object
+      nullable: true
+      description: Working hours for a given day. Set to null to mark the day as non-working.
+      properties:
+        start:
+          type: string
+          description: Start time in HH:MM format.
+          example: '09:00'
+        end:
+          type: string
+          description: End time in HH:MM format.
+          example: '18:00'
+        breaks:
+          type: array
+          items:
+            type: object
+            properties:
+              start:
+                type: string
+                example: '12:00'
+              end:
+                type: string
+                example: '13:00'
+    WorkingPlanPayload:
+      type: object
+      description: Full week working plan. Each day must be either a WorkingDayPlan object or null (day off).
+      properties:
+        monday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+        tuesday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+        wednesday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+        thursday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+        friday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+        saturday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+        sunday:
+          $ref: '#/components/schemas/WorkingDayPlan'
+      example:
+        monday: null
+        tuesday: null
+        wednesday: null
+        thursday:
+          start: '09:00'
+          end: '18:00'
+          breaks:
+            - start: '12:00'
+              end: '13:00'
+        friday: null
+        saturday: null
+        sunday: null
+    CompanyProviderWorkingPlan:
+      type: object
+      description: Working plan of a provider within the context of a company.
+      properties:
+        companyId:
+          type: integer
+        providerId:
+          type: integer
+        workingPlan:
+          $ref: '#/components/schemas/WorkingPlanPayload'
+      example:
+        companyId: 2
+        providerId: 2
+        workingPlan:
+          monday: null
+          tuesday: null
+          wednesday: null
+          thursday:
+            start: '09:00'
+            end: '18:00'
+            breaks: []
+          friday: null
+          saturday: null
+          sunday: null
+    ProviderParticularWorkingPlan:
+      type: object
+      description: Personal (particular) working plan of a provider, not tied to any company.
+      properties:
+        providerId:
+          type: integer
+        workingPlan:
+          $ref: '#/components/schemas/WorkingPlanPayload'
+      example:
+        providerId: 2
+        workingPlan:
+          monday:
+            start: '08:00'
+            end: '17:00'
+            breaks: []
+          tuesday:
+            start: '08:00'
+            end: '17:00'
+            breaks: []
+          wednesday:
+            start: '08:00'
+            end: '18:00'
+            breaks: []
+          thursday: null
+          friday: null
+          saturday: null
+          sunday: null
   securitySchemes:
     BearerToken:
       type: http

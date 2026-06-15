@@ -574,4 +574,22 @@ $lang['about_app_premium'] = 'We offer end-to-end services for self-hosted softw
 $lang['go_premium'] = 'Go Premium';
 $lang['notify_users_on_create_question'] = 'Would you like to send out a notification about this change?';
 $lang['notify_users_on_delete_question'] = 'Would you like to send out a notification about this change?';
+$lang['companies'] = 'Companies';
+$lang['company'] = 'Company';
+$lang['manage_companies_hint'] = 'Manage the companies that providers work for.';
+$lang['company_saved'] = 'Company saved successfully.';
+$lang['company_deleted'] = 'Company deleted successfully.';
+$lang['delete_company'] = 'Delete Company';
+$lang['slug'] = 'Slug';
+$lang['slug_hint'] = 'Used in the booking URL: /booking?company={slug}';
+$lang['auto_generated'] = 'Auto-generated if left empty';
+$lang['working_plan_company_hint'] = 'Define the working hours for this provider when attending at this company. Days left unchecked mean the provider does not work here on that day.';
+$lang['working_plan_saved'] = 'Working plan saved successfully!';
+$lang['working_plan_no_company'] = 'Save the company first before setting the working plan.';
+$lang['working'] = 'Working';
+$lang['occupied_by'] = 'Occupied by';
+$lang['schedule_conflict'] = 'Schedule conflict! The following days overlap with existing schedules:';
+$lang['particular'] = 'Particular (no company)';
+$lang['outside_working_hours'] = 'The appointment time is outside the provider\'s working hours.';
+$lang['provider_not_working_on_day'] = 'The provider does not work on %s.';
 // End

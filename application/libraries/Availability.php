@@ -41,6 +41,7 @@ class Availability
         $this->CI->load->model('unavailabilities_model');
         $this->CI->load->model('blocked_periods_model');
         $this->CI->load->model('working_plan_exceptions_model');
+        $this->CI->load->model('companies_model');
 
         $this->CI->load->library('ics_file');
     }
@@ -52,6 +53,7 @@ class Availability
      * @param array $service Service data.
      * @param array $provider Provider data.
      * @param int|null $exclude_appointment_id Exclude an appointment from the availability generation.
+     * @param int|null $company_id When provided, the company-specific working plan is used instead.
      *
      * @return array
      *
@@ -62,9 +64,14 @@ class Availability
         array $service,
         array $provider,
         ?int $exclude_appointment_id = null,
+        ?int $company_id = null,
     ): array {
         if ($this->CI->blocked_periods_model->is_entire_date_blocked($date)) {
             return [];
+        }
+
+        if ($company_id !== null) {
+            $provider = $this->apply_company_working_plan($provider, $company_id);
         }
 
         if ($service['attendants_number'] > 1) {
@@ -78,6 +85,30 @@ class Availability
         $available_hours = $this->consider_book_advance_timeout($date, $available_hours, $provider);
 
         return $this->consider_future_booking_limit($date, $available_hours, $provider);
+    }
+
+    /**
+     * Override the provider's working plan with the company-specific one (if available).
+     *
+     * @param array $provider Provider data.
+     * @param int $company_id Company ID.
+     *
+     * @return array Returns the provider data with the working plan overridden.
+     */
+    protected function apply_company_working_plan(array $provider, int $company_id): array
+    {
+        $this->CI->load->model('providers_model');
+
+        $company_working_plan = $this->CI->providers_model->get_working_plan_for_company(
+            (int) $provider['id'],
+            $company_id,
+        );
+
+        if (!empty($company_working_plan)) {
+            $provider['settings']['working_plan'] = $company_working_plan;
+        }
+
+        return $provider;
     }
 
     /**
@@ -334,7 +365,7 @@ class Availability
     public function get_available_periods(string $date, array $provider, ?int $exclude_appointment_id = null): array
     {
         // Get the service, provider's working plan and provider appointments.
-        $working_plan = json_decode($provider['settings']['working_plan'], true);
+        $working_plan = json_decode($provider['settings']['working_plan'] ?? '{}', true);
 
         // Get the provider's working plan exceptions from the new table.
         $working_plan_exceptions = $this->CI->working_plan_exceptions_model->get_by_provider($provider['id']);

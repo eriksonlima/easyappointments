@@ -29,6 +29,7 @@ class Services_model extends EA_Model
         'attendants_number' => 'integer',
         'is_private' => 'boolean',
         'id_service_categories' => 'integer',
+        'id_companies' => 'integer',
     ];
 
     /**
@@ -47,6 +48,7 @@ class Services_model extends EA_Model
         'attendantsNumber' => 'attendants_number',
         'isPrivate' => 'is_private',
         'serviceCategoryId' => 'id_service_categories',
+        'companyId' => 'id_companies',
     ];
 
     /**
@@ -484,6 +486,9 @@ class Services_model extends EA_Model
             'isPrivate' => (bool) $service['is_private'],
             'serviceCategoryId' =>
                 $service['id_service_categories'] !== null ? (int) $service['id_service_categories'] : null,
+            'companyId' => isset($service['id_companies']) && $service['id_companies'] !== null
+                ? (int) $service['id_companies']
+                : null,
         ];
 
         $service = $encoded_resource;
@@ -543,10 +548,91 @@ class Services_model extends EA_Model
             $decoded_resource['id_service_categories'] = $service['serviceCategoryId'];
         }
 
+        if (array_key_exists('companyId', $service)) {
+            $decoded_resource['id_companies'] = $service['companyId'];
+        }
+
         if (array_key_exists('isPrivate', $service)) {
             $decoded_resource['is_private'] = (bool) $service['isPrivate'];
         }
 
         $service = $decoded_resource;
+    }
+
+    /**
+     * Get all services that belong to a specific company.
+     *
+     * @param int $company_id Company ID.
+     * @param bool $without_private Only include public services.
+     *
+     * @return array Returns an array of services.
+     */
+    public function get_company_services(int $company_id, bool $without_private = false): array
+    {
+        if ($without_private) {
+            $this->db->where('is_private', false);
+        }
+
+        $services = $this->db->get_where('services', ['id_companies' => $company_id])->result_array();
+
+        foreach ($services as &$service) {
+            $this->cast($service);
+        }
+
+        return $services;
+    }
+
+    /**
+     * Get all services that are "particular" (not linked to any company) and available for a specific provider.
+     *
+     * @param int $provider_id Provider ID.
+     *
+     * @return array Returns an array of services.
+     */
+    public function get_particular_services(int $provider_id): array
+    {
+        $services = $this->db
+            ->select('services.*')
+            ->from('services')
+            ->join('services_providers', 'services_providers.id_services = services.id', 'inner')
+            ->where('services_providers.id_users', $provider_id)
+            ->where('services.id_companies IS NULL')
+            ->get()
+            ->result_array();
+
+        foreach ($services as &$service) {
+            $this->cast($service);
+        }
+
+        return $services;
+    }
+
+    /**
+     * Get all services available for a provider — including company services and particular services.
+     *
+     * @param int $provider_id Provider ID.
+     * @param int|null $company_id If set, filter to only this company's services.
+     *
+     * @return array Returns an array of services.
+     */
+    public function get_available_services_for_provider(int $provider_id, ?int $company_id = null): array
+    {
+        $this->db
+            ->select('services.*')
+            ->from('services')
+            ->join('services_providers', 'services_providers.id_services = services.id', 'inner')
+            ->where('services_providers.id_users', $provider_id);
+
+        if ($company_id !== null) {
+            $this->db->where('services.id_companies', $company_id);
+        }
+
+        $services = $this->db->get()->result_array();
+
+        foreach ($services as &$service) {
+            $this->cast($service);
+        }
+
+        return $services;
     }
 }

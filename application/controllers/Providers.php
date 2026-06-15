@@ -70,6 +70,7 @@ class Providers extends EA_Controller
 
         $this->load->model('providers_model');
         $this->load->model('services_model');
+        $this->load->model('secretaries_model');
         $this->load->model('roles_model');
 
         $this->load->library('accounts');
@@ -111,6 +112,17 @@ class Providers extends EA_Controller
             $this->services_model->only($service, $this->allowed_service_fields);
         }
 
+        // Build map: provider_id → list of secretaries linked to that provider.
+        $all_providers = $this->providers_model->get();
+        $provider_secretaries_map = [];
+        foreach ($all_providers as $provider) {
+            $secs = $this->secretaries_model->get_by_provider_id((int) $provider['id']);
+            $provider_secretaries_map[(int) $provider['id']] = array_map(
+                fn($s) => ['id' => (int) $s['id'], 'name' => $s['first_name'] . ' ' . $s['last_name']],
+                $secs,
+            );
+        }
+
         script_vars([
             'user_id' => $user_id,
             'role_slug' => $role_slug,
@@ -121,6 +133,7 @@ class Providers extends EA_Controller
             'min_password_length' => MIN_PASSWORD_LENGTH,
             'timezones' => $this->timezones->to_array(),
             'services' => $services,
+            'provider_secretaries_map' => $provider_secretaries_map,
             'default_language' => setting('default_language'),
             'default_timezone' => setting('default_timezone'),
         ]);

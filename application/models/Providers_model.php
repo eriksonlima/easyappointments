@@ -640,39 +640,6 @@ class Providers_model extends EA_Model
     }
 
     /**
-     * Get all the provider records that are assigned to at least one service.
-     *
-     * @param bool $without_private Only include the public providers.
-     *
-     * @return array Returns an array of providers.
-     */
-    public function get_available_providers(bool $without_private = false): array
-    {
-        if ($without_private) {
-            $this->db->where('users.is_private', false);
-        }
-
-        $providers = $this->db
-            ->select('users.*')
-            ->from('users')
-            ->join('roles', 'roles.id = users.id_roles', 'inner')
-            ->join('services_providers', 'services_providers.id_users = users.id', 'inner')
-            ->where('roles.slug', DB_SLUG_PROVIDER)
-            ->order_by('first_name ASC, last_name ASC, email ASC')
-            ->group_by('users.id')
-            ->get()
-            ->result_array();
-
-        foreach ($providers as &$provider) {
-            $this->cast($provider);
-            $provider['settings'] = $this->get_settings($provider['id']);
-            $provider['services'] = $this->get_service_ids($provider['id']);
-        }
-
-        return $providers;
-    }
-
-    /**
      * Get the query builder interface, configured for use with the users (provider-filtered) table.
      *
      * @return CI_DB_query_builder
@@ -1032,5 +999,147 @@ class Providers_model extends EA_Model
         $provider = $this->find($provider_id);
 
         return in_array($service_id, $provider['services']);
+    }
+
+    /**
+     * Get the company IDs the provider is linked to.
+     *
+     * @param int $provider_id Provider ID.
+     *
+     * @return array Returns an array of company IDs.
+     */
+    public function get_company_ids(int $provider_id): array
+    {
+        $rows = $this->db->get_where('company_providers', ['id_users_provider' => $provider_id])->result_array();
+
+        return array_map(fn($row) => (int) $row['id_companies'], $rows);
+    }
+
+    /**
+     * Set the company IDs the provider is linked to (replaces existing, preserving working plans).
+     *
+     * @param int $provider_id Provider ID.
+     * @param array $company_ids Company IDs.
+     */
+    public function set_company_ids(int $provider_id, array $company_ids): void
+    {
+        $existing = $this->db
+            ->get_where('company_providers', ['id_users_provider' => $provider_id])
+            ->result_array();
+
+        $existing_map = [];
+        foreach ($existing as $row) {
+            $existing_map[(int) $row['id_companies']] = $row;
+        }
+
+        $new_ids = array_map('intval', $company_ids);
+
+        // Remove links no longer present
+        $to_remove = array_diff(array_keys($existing_map), $new_ids);
+        foreach ($to_remove as $company_id) {
+            $this->db->delete('company_providers', [
+                'id_companies' => $company_id,
+                'id_users_provider' => $provider_id,
+            ]);
+        }
+
+        // Insert new links
+        $to_add = array_diff($new_ids, array_keys($existing_map));
+        foreach ($to_add as $company_id) {
+            $this->db->insert('company_providers', [
+                'id_companies' => $company_id,
+                'id_users_provider' => $provider_id,
+            ]);
+        }
+    }
+
+    /**
+     * Get the working plan for a provider in the context of a specific company.
+     *
+     * @param int $provider_id Provider ID.
+     * @param int $company_id Company ID.
+     *
+     * @return string|null Returns the working plan JSON or null.
+     */
+    public function get_working_plan_for_company(int $provider_id, int $company_id): ?string
+    {
+        $row = $this->db
+            ->get_where('company_providers', [
+                'id_users_provider' => $provider_id,
+                'id_companies' => $company_id,
+            ])
+            ->row_array();
+
+        return $row['working_plan'] ?? null;
+    }
+
+    /**
+     * Set the working plan for a provider in the context of a specific company.
+     *
+     * @param int $provider_id Provider ID.
+     * @param int $company_id Company ID.
+     * @param string $working_plan Working plan JSON.
+     */
+    public function set_working_plan_for_company(int $provider_id, int $company_id, string $working_plan): void
+    {
+        $existing = $this->db
+            ->get_where('company_providers', [
+                'id_users_provider' => $provider_id,
+                'id_companies' => $company_id,
+            ])
+            ->num_rows();
+
+        if ($existing) {
+            $this->db->update(
+                'company_providers',
+                ['working_plan' => $working_plan],
+                ['id_users_provider' => $provider_id, 'id_companies' => $company_id],
+            );
+        } else {
+            $this->db->insert('company_providers', [
+                'id_users_provider' => $provider_id,
+                'id_companies' => $company_id,
+                'working_plan' => $working_plan,
+            ]);
+        }
+    }
+
+    /**
+     * Get all available providers, optionally filtered by company.
+     *
+     * @param bool $without_private Only include the public providers.
+     * @param int|null $company_id Filter by company ID (null = no filter).
+     *
+     * @return array Returns an array of providers.
+     */
+    public function get_available_providers(bool $without_private = false, ?int $company_id = null): array
+    {
+        if ($without_private) {
+            $this->db->where('users.is_private', false);
+        }
+
+        if ($company_id !== null) {
+            $this->db->join('company_providers', 'company_providers.id_users_provider = users.id', 'inner');
+            $this->db->where('company_providers.id_companies', $company_id);
+        }
+
+        $providers = $this->db
+            ->select('users.*')
+            ->from('users')
+            ->join('roles', 'roles.id = users.id_roles', 'inner')
+            ->join('services_providers', 'services_providers.id_users = users.id', 'inner')
+            ->where('roles.slug', DB_SLUG_PROVIDER)
+            ->order_by('first_name ASC, last_name ASC, email ASC')
+            ->group_by('users.id')
+            ->get()
+            ->result_array();
+
+        foreach ($providers as &$provider) {
+            $this->cast($provider);
+            $provider['settings'] = $this->get_settings($provider['id']);
+            $provider['services'] = $this->get_service_ids($provider['id']);
+        }
+
+        return $providers;
     }
 }

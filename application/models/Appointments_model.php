@@ -27,6 +27,7 @@ class Appointments_model extends EA_Model
         'id_users_provider' => 'integer',
         'id_users_customer' => 'integer',
         'id_services' => 'integer',
+        'id_companies' => 'integer',
     ];
 
     /**
@@ -46,6 +47,7 @@ class Appointments_model extends EA_Model
         'serviceId' => 'id_services',
         'providerId' => 'id_users_provider',
         'customerId' => 'id_users_customer',
+        'companyId' => 'id_companies',
         'googleCalendarId' => 'id_google_calendar',
         'caldavCalendarId' => 'id_caldav_calendar',
     ];
@@ -606,6 +608,9 @@ class Appointments_model extends EA_Model
             'customerId' => $appointment['id_users_customer'] !== null ? (int) $appointment['id_users_customer'] : null,
             'providerId' => $appointment['id_users_provider'] !== null ? (int) $appointment['id_users_provider'] : null,
             'serviceId' => $appointment['id_services'] !== null ? (int) $appointment['id_services'] : null,
+            'companyId' => isset($appointment['id_companies']) && $appointment['id_companies'] !== null
+                ? (int) $appointment['id_companies']
+                : null,
             'meetingLink' => $appointment['meeting_link'],
             'googleCalendarId' =>
                 $appointment['id_google_calendar'] !== null ? $appointment['id_google_calendar'] : null,
@@ -672,6 +677,10 @@ class Appointments_model extends EA_Model
 
         if (array_key_exists('serviceId', $appointment)) {
             $decoded_resource['id_services'] = $appointment['serviceId'];
+        }
+
+        if (array_key_exists('companyId', $appointment)) {
+            $decoded_resource['id_companies'] = $appointment['companyId'];
         }
 
         if (array_key_exists('googleCalendarId', $appointment)) {

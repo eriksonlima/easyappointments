@@ -55,6 +55,7 @@ class Booking extends EA_Controller
         'id_users_provider',
         'id_users_customer',
         'id_services',
+        'id_companies',
     ];
 
     /**
@@ -73,6 +74,7 @@ class Booking extends EA_Controller
         $this->load->model('customers_model');
         $this->load->model('settings_model');
         $this->load->model('consents_model');
+        $this->load->model('companies_model');
 
         $this->load->library('timezones');
         $this->load->library('synchronization');
@@ -164,6 +166,41 @@ class Booking extends EA_Controller
             // Only expose the required provider data.
 
             $this->providers_model->only($available_provider, $this->allowed_provider_fields);
+        }
+
+        // Filter by company or provider context from query string.
+        $company_slug = $this->input->get('company');
+        $booking_provider_id = $this->input->get('provider');
+        $booking_company = null;
+
+        if (!empty($company_slug)) {
+            $booking_company = $this->companies_model->find_by_slug($company_slug);
+
+            if ($booking_company) {
+                $company_provider_ids = $booking_company['providers'];
+
+                $available_providers = array_values(
+                    array_filter($available_providers, fn($p) => in_array($p['id'], $company_provider_ids)),
+                );
+
+                $service_ids_in_company = array_unique(
+                    array_merge(...array_map(fn($p) => $p['services'], $available_providers) ?: [[]]),
+                );
+
+                $available_services = array_values(
+                    array_filter($available_services, fn($s) => in_array($s['id'], $service_ids_in_company)),
+                );
+            }
+        } elseif (!empty($booking_provider_id) && is_numeric($booking_provider_id)) {
+            $available_providers = array_values(
+                array_filter($available_providers, fn($p) => (int) $p['id'] === (int) $booking_provider_id),
+            );
+
+            $provider_service_ids = !empty($available_providers) ? $available_providers[0]['services'] : [];
+
+            $available_services = array_values(
+                array_filter($available_services, fn($s) => in_array($s['id'], $provider_service_ids)),
+            );
         }
 
         $date_format = setting('date_format');
@@ -309,6 +346,7 @@ class Booking extends EA_Controller
             'customer_token' => $customer_token,
             'default_language' => setting('default_language'),
             'default_timezone' => setting('default_timezone'),
+            'booking_company' => $booking_company,
         ]);
 
         html_vars([
@@ -715,8 +753,7 @@ class Booking extends EA_Controller
             $provider_id = request('provider_id');
             $service_id = request('service_id');
             $selected_date = request('selected_date');
-
-            // Do not continue if there was no provider selected (more likely there is no provider in the system).
+            $company_id = request('company_id') ? (int) request('company_id') : null;
 
             if (empty($provider_id)) {
                 json_response();
@@ -724,18 +761,12 @@ class Booking extends EA_Controller
                 return;
             }
 
-            // If manage mode is TRUE then the following we should not consider the selected appointment when
-            // calculating the available time periods of the provider.
-
             $exclude_appointment_id = request('manage_mode') ? request('appointment_id') : null;
-
-            // If the user has selected the "any-provider" option then we will need to search for an available provider
-            // that will provide the requested service.
 
             $service = $this->services_model->find($service_id);
 
             if ($provider_id === ANY_PROVIDER) {
-                $providers = $this->providers_model->get_available_providers(true);
+                $providers = $this->providers_model->get_available_providers(true, $company_id);
 
                 $available_hours = [];
 
@@ -749,6 +780,7 @@ class Booking extends EA_Controller
                         $service,
                         $provider,
                         $exclude_appointment_id,
+                        $company_id,
                     );
 
                     $available_hours = array_merge($available_hours, $provider_available_hours);
@@ -767,6 +799,7 @@ class Booking extends EA_Controller
                     $service,
                     $provider,
                     $exclude_appointment_id,
+                    $company_id,
                 );
             }
 
@@ -810,6 +843,7 @@ class Booking extends EA_Controller
             $selected_date = new DateTime($selected_date_string);
             $number_of_days_in_month = (int) $selected_date->format('t');
             $unavailable_dates = [];
+            $company_id = request('company_id') ? (int) request('company_id') : null;
 
             $provider_ids =
                 $provider_id === ANY_PROVIDER ? $this->search_providers_by_service($service_id) : [$provider_id];
@@ -837,6 +871,7 @@ class Booking extends EA_Controller
                         $service,
                         $provider,
                         $exclude_appointment_id,
+                        $company_id,
                     );
 
                     if (!empty($available_hours)) {

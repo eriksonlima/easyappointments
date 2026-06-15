@@ -413,6 +413,10 @@ App.Pages.Providers = (function () {
         $('#providers .working-plan tbody').empty();
         $('#providers .breaks tbody').empty();
         $('#providers .working-plan-exceptions tbody').empty();
+
+        // Clear linked secretaries.
+        $('#provider-secretaries .secretary-badge').remove();
+        $('#provider-secretaries-empty').removeClass('d-none');
     }
 
     /**
@@ -506,6 +510,27 @@ App.Pages.Providers = (function () {
             .find('.edit-working-plan-exception, .delete-working-plan-exception')
             .prop('disabled', true);
         $providers.find('.working-plan input:checkbox').prop('disabled', true);
+
+        // Show linked secretaries (read-only).
+        const $secContainer = $('#provider-secretaries');
+        const $secEmpty = $('#provider-secretaries-empty');
+        $secContainer.find('.secretary-badge').remove();
+        const secretariesMap = vars('provider_secretaries_map') || {};
+        const linkedSecretaries = secretariesMap[Number(provider.id)] || [];
+
+        if (linkedSecretaries.length) {
+            $secEmpty.addClass('d-none');
+            linkedSecretaries.forEach((sec) => {
+                $secContainer.append(
+                    $('<span/>', {
+                        'class': 'secretary-badge badge rounded-pill bg-secondary me-1 mb-1',
+                        'text': sec.name,
+                    }),
+                );
+            });
+        } else {
+            $secEmpty.removeClass('d-none');
+        }
     }
 
     /**
